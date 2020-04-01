@@ -42,5 +42,6 @@ func (broadcaster *Broadcaster) WithBroker(b *Broker) http.Handler {
 		}
 
 		broadcaster.broadcast(m, b)
+		w.WriteHeader(http.StatusCreated)
 	})
 }
