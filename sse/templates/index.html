@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SSE!</title>
+</head>
+
+<body>
+    Welcome to SSE
+</body>
+
+<script>
+    const evtSource = new EventSource("http://localhost/events");
+    console.log(evtSource);
+    evtSource.onmessage = function (event) {
+        console.log(event);
+    }
+</script>
+
+</html>

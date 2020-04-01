@@ -1,0 +1,29 @@
+version: "3.7"
+
+networks:
+  reverse-proxy:
+    external: true
+
+
+services:
+  goservice:
+    build: .
+    command: sh -c "go run sse/main.go"
+    # environment:    
+    #   - TRUSTED_PROXIES=${TRUSTED_PROXIES:-172.18.0.0/24}
+    # ports:
+    #   - "8080:80"
+    working_dir: /go/src/app
+    volumes:
+      - .:/go/src/app
+    labels:
+      - "traefik.docker.network=reverse-proxy"
+      - "traefik.enable=true"
+      - "traefik.port=80"
+      - "traefik.backend=${COMPOSE_PROJECT_NAME}"
+      - "traefik.frontend.passHostHeader=true"
+      - "traefik.frontend.rule=Host:${SSE_URL}"
+      - "traefik.frontend.whiteList.sourceRange=${WHITELIST}"
+    networks:
+      - reverse-proxy
+
