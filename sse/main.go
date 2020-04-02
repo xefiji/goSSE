@@ -19,11 +19,17 @@ import (
 var b broker.Broker
 var bc broker.Broadcaster
 var basepath string
+var jwtKey = []byte(os.Getenv("SSE_APP_KEY"))
 
 type User struct {
 	Name     string `json:"username"`
 	Password string `json:"password"`
 	Token    string
+}
+
+type Claims struct {
+	Username string `json:"username"`
+	jwt.StandardClaims
 }
 
 func main() {
@@ -56,7 +62,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Render template
-	t.Execute(w, nil)
+	var env_vars = map[string]string{"user": os.Getenv("SSE_USERNAME"), "password": os.Getenv("SSE_PASSWORD")}
+	t.Execute(w, env_vars)
 }
 
 //instantiate a Broker and a Broadcaster
@@ -79,10 +86,6 @@ func init() {
 //Jwt handler to issue the token
 func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 
 	var u User
 	err := json.NewDecoder(r.Body).Decode(&u)
@@ -92,28 +95,36 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//todo make it stronger
-	if u.Name != os.Getenv("SSE_USERNAME") || u.Password != os.Getenv("SSE_PASSWORD") {
+	if false == checkAuth(u.Name, u.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
 		io.WriteString(w, `{"error":"Invalid creds"}`)
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user": u.Name,
-		"exp":  time.Now().Add(time.Hour * time.Duration(1)).Unix(), //one hour
-		"iat":  time.Now().Unix(),
-	})
+	expiresAt := expiresAt()
+	claims := &Claims{
+		Username: u.Name,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expiresAt.Unix(),
+		},
+	}
 
-	tokenString, err := token.SignedString([]byte(os.Getenv("SSE_APP_KEY")))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, `{"error":"Token generation failed"}`)
 		return
 	}
 
-	tokenString = fmt.Sprintf("{\"token\":\"%s\"}", tokenString)
-	io.WriteString(w, tokenString)
-	return
+	http.SetCookie(w, &http.Cookie{
+		Name:    "sse_token",
+		Value:   tokenString,
+		Expires: expiresAt,
+	})
+
+	tokenJson := fmt.Sprintf("{\"token\":\"%s\"}", tokenString)
+	io.WriteString(w, tokenJson)
 }
 
 //handler wrapper for jwt auth
@@ -122,6 +133,46 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		log.Fatal("Missing APP_KEY")
 	}
 
-	//todo do the middleware check for auth here
-	return next //next should be the broker, in our case
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie("sse_token")
+		if err != nil {
+			if err == http.ErrNoCookie { //no cookie, no token
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		cookieValue := c.Value
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(cookieValue, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil {
+			if err == jwt.ErrSignatureInvalid {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if !token.Valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r) //next should be the broker and its ServeHTTP function, in our case
+	})
+
+}
+
+//todo make it stronger
+func checkAuth(username string, password string) bool {
+	return username == os.Getenv("SSE_USERNAME") && password == os.Getenv("SSE_PASSWORD")
+}
+
+//one hour ?
+func expiresAt() time.Time {
+	return time.Now().Add(time.Hour * time.Duration(1))
 }

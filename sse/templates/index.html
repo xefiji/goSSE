@@ -10,10 +10,29 @@
 </body>
 
 <script>
+
+
+    login('{{ .user }}', '{{ .password }}')
     const evtSource = new EventSource("http://localhost/events");
-    console.log(evtSource);
     evtSource.onmessage = function (event) {
         console.log(event);
+    }
+
+    function login(user, password) {    
+        var url = "http://localhost/login";
+        var data = {};
+        data.username = user;
+        data.password = password;
+        var json = JSON.stringify(data);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader('Content-type', 'application/json; charset=utf-8');
+        xhr.onload = function () {
+            var token = JSON.parse(xhr.responseText);
+            console.log(token);
+        }
+        xhr.send(json);
     }
 </script>
 
