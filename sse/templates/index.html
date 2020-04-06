@@ -11,18 +11,19 @@
 
 <script>
 
-
-    login('{{ .user }}', '{{ .password }}')
-    const evtSource = new EventSource("http://localhost/events");
+    var testId = "a99d4b4e-e5c4-42b4-888d-651862c599f" + Math.floor(Math.random() * 10); //todo remove
+    login('{{ .user }}', '{{ .password }}', testId)
+    const evtSource = new EventSource("http://localhost/events?type=sse");
     evtSource.onmessage = function (event) {
         console.log(event);
     }
 
-    function login(user, password) {    
+    function login(user, password, id) {
         var url = "http://localhost/login";
         var data = {};
         data.username = user;
         data.password = password;
+        data.id = id;
         var json = JSON.stringify(data);
 
         var xhr = new XMLHttpRequest();

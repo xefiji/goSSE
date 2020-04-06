@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 type Message struct {
 	Content string
+	User    string
+	Type    string
 }
 
 type Broadcaster struct {
@@ -18,7 +22,7 @@ type Broadcaster struct {
 
 // actual broadcast to broker messages channel
 func (broadcaster *Broadcaster) broadcast(msg Message, b *Broker) {
-	b.Messages <- fmt.Sprintf("%s", msg.Content)
+	b.Messages <- msg
 }
 
 // for tests
@@ -26,7 +30,8 @@ func (broadcaster *Broadcaster) broadcastLoop(b *Broker) {
 	fmt.Println("Starting to broadcast in a loop")
 	for i := 0; ; i++ {
 		log.Printf("Sent message %d ", i)
-		b.Messages <- fmt.Sprintf("%d - time is %v", i, time.Now())
+		m := Message{fmt.Sprintf("%d - time is %v", i, time.Now()), strconv.Itoa(rand.Intn(100)), "sse"}
+		b.Messages <- m
 		time.Sleep(5e9)
 	}
 }

@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +24,8 @@ type Claims struct {
 type User struct {
 	Name     string `json:"username"`
 	Password string `json:"password"`
-	Token    string
+	Id       string `json:"id"`
+	Token    string `json:"token"`
 }
 
 //Jwt handler to issue the token
@@ -59,13 +62,13 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tokenJson := fmt.Sprintf("{\"token\":\"%s\", \"id\": \"%s\"}", tokenString, u.Id)
 	http.SetCookie(w, &http.Cookie{
 		Name:    "sse_token",
-		Value:   tokenString,
+		Value:   base64.StdEncoding.EncodeToString([]byte(tokenJson)),
 		Expires: expiresAt,
 	})
 
-	tokenJson := fmt.Sprintf("{\"token\":\"%s\"}", tokenString)
 	io.WriteString(w, tokenJson)
 }
 
@@ -86,9 +89,21 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		cookieValue := c.Value
+		//decode cookie
+		cookieValue, err := base64.StdEncoding.DecodeString(c.Value)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			io.WriteString(w, `{"error":"Cookie decoding failed"}`)
+			return
+		}
+
+		//hydrate user with cookie datas
+		var u User
+		json.Unmarshal([]byte(cookieValue), &u)
+
+		//check token's validity
 		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(cookieValue, claims, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(u.Token, claims, func(token *jwt.Token) (interface{}, error) {
 			return jwtKey, nil
 		})
 		if err != nil {
@@ -104,7 +119,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(w, r) //next should be the broker and its ServeHTTP function, in our case
+		//add user to request context
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, "user", u)
+		next.ServeHTTP(w, r.WithContext(ctx)) //next should be the broker and its ServeHTTP function, in our case
 	})
 
 }
@@ -114,7 +132,7 @@ func checkAuth(username string, password string) bool {
 	return username == os.Getenv("SSE_USERNAME") && password == os.Getenv("SSE_PASSWORD")
 }
 
-//one hour ?
+//one second ?
 func expiresAt() time.Time {
-	return time.Now().Add(time.Hour * time.Duration(1))
+	return time.Now().Add(time.Second * time.Duration(1))
 }

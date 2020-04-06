@@ -12,21 +12,25 @@ import (
 	"text/template"
 )
 
-var b broker.Broker
-var bc broker.Broadcaster
-var basepath string
+var b broker.Broker       //the one that holds the channels and know where to dispatch events
+var bc broker.Broadcaster //the one that knows how to broadcast events form the outside to the inside
+var basepath string       //basepath for template parsing.
 
 func main() {
 	//routing
 	http.Handle("/login", http.HandlerFunc(auth.TokenHandler))
 	http.Handle("/broadcast", bc.WithBroker(&b))    //wrapper to pass extra args
-	http.Handle("/events", auth.AuthMiddleware(&b)) //will call ServeHTTP method (default)
+	http.Handle("/events", auth.AuthMiddleware(&b)) //will call auth middleware, then ServeHTTP method (default)
 	http.Handle("/", http.HandlerFunc(mainHandler)) //classic handler
 
 	fmt.Println("Running...")
 
 	//serving. todo: port as var
-	if err := http.ListenAndServe(":80", nil); err != nil {
+	portVar := os.Getenv("SSE_PORT")
+	if portVar == "" {
+		portVar = "80"
+	}
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", portVar), nil); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -51,12 +55,13 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //instantiate a Broker and a Broadcaster
+//sets basepath for template parsing. todo: should be done in a better
 func init() {
 	b = broker.Broker{
-		Clients:     make(map[chan string]bool),
-		NewClients:  make(chan (chan string)),
-		DcnxClients: make(chan (chan string)),
-		Messages:    make(chan string),
+		Clients:     make(map[chan broker.Message]broker.Client),
+		NewClients:  make(chan broker.Client),
+		DcnxClients: make(chan broker.Client),
+		Messages:    make(chan broker.Message),
 	}
 
 	b.Start()
