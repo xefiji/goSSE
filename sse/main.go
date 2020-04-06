@@ -10,6 +10,8 @@ import (
 	"sse/auth"
 	"sse/broker"
 	"text/template"
+
+	"github.com/joho/godotenv"
 )
 
 var b broker.Broker       //the one that holds the channels and know where to dispatch events
@@ -37,6 +39,7 @@ func main() {
 
 //Serves templates with SSE js object (mainly for tests)
 func mainHandler(w http.ResponseWriter, r *http.Request) {
+
 	//force path to "/" only
 	if r.URL.Path != "/" {
 		w.WriteHeader(http.StatusNotFound)
@@ -57,6 +60,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 //instantiate a Broker and a Broadcaster
 //sets basepath for template parsing. todo: should be done in a better
 func init() {
+	godotenv.Load()
+
 	b = broker.Broker{
 		Clients:     make(map[chan broker.Message]broker.Client),
 		NewClients:  make(chan broker.Client),
