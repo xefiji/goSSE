@@ -28,8 +28,23 @@ type User struct {
 	Token    string `json:"token"`
 }
 
+func addCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", os.Getenv("ALLOWED_ORIGIN"))
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	(*w).Header().Set("Access-Control-Expose-Headers", "Authorization")
+	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
+}
+
 //Jwt handler to issue the token
 func TokenHandler(w http.ResponseWriter, r *http.Request) {
+	//handle CORS: add headers and check options (return 204 to let the other request be done)
+	addCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	w.Header().Add("Content-Type", "application/json")
 
 	var u User
@@ -79,6 +94,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		addCors(&w)
 		c, err := r.Cookie("sse_token")
 		if err != nil {
 			if err == http.ErrNoCookie { //no cookie, no token

@@ -8,12 +8,12 @@ networks:
 services:
   goservice:
     build: .
-    command: sh -c "go run sse/main.go"
-    # environment:    
-    #   - TRUSTED_PROXIES=${TRUSTED_PROXIES:-172.18.0.0/24}
+    #command: sh -c "go run main.go" # useful while debugging
+    # environment:
+    #   - TRUSTED_PROXIES=${TRUSTED_PROXIES:-?.?.?.?/?}
     # ports:
     #   - "8080:80"
-    working_dir: /go/src/app
+    working_dir: /go/src/app/src
     volumes:
       - .:/go/src/app
     labels:
@@ -26,4 +26,3 @@ services:
       - "traefik.frontend.whiteList.sourceRange=${WHITELIST}"
     networks:
       - reverse-proxy
-

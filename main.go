@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"runtime"
 	"sse/auth"
 	"sse/broker"
 	"text/template"
@@ -16,7 +14,7 @@ import (
 
 var b broker.Broker       //the one that holds the channels and know where to dispatch events
 var bc broker.Broadcaster //the one that knows how to broadcast events form the outside to the inside
-var basepath string       //basepath for template parsing.
+var tplpath string        //basepath for template parsing.
 
 func main() {
 	//routing
@@ -47,9 +45,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Read template
-	t, err := template.ParseFiles(fmt.Sprintf("%s\\templates\\index.html", basepath))
+	t, err := template.ParseFiles("templates/index.html")
 	if err != nil {
-		log.Fatalf("Error parsing template: %s", err)
+		log.Panicf("Error parsing template: %s", err)
 	}
 
 	//Render template
@@ -58,7 +56,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //instantiate a Broker and a Broadcaster
-//sets basepath for template parsing. todo: should be done in a better
+//sets tplpath for template parsing. todo: should be done in a better
 func init() {
 	godotenv.Load()
 
@@ -72,7 +70,4 @@ func init() {
 	b.Start()
 
 	bc = broker.Broadcaster{}
-
-	_, t, _, _ := runtime.Caller(0)
-	basepath = filepath.Dir(t)
 }

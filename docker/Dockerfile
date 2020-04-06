@@ -2,12 +2,10 @@ FROM golang:1.13
 
 WORKDIR /go/src/app
 COPY . .
+COPY src .
 
 RUN go get -d -v ./...
 RUN go install -v ./...
-RUN go get -u github.com/gorilla/mux
-RUN go get -u github.com/dgrijalva/jwt-go
 
-# source env var ?
-
-CMD ["app"]
+WORKDIR /go/src/app/src
+CMD ["sse"]

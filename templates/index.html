@@ -13,10 +13,6 @@
 
     var testId = "a99d4b4e-e5c4-42b4-888d-651862c599f" + Math.floor(Math.random() * 10); //todo remove
     login('{{ .user }}', '{{ .password }}', testId)
-    const evtSource = new EventSource("http://localhost/events?type=sse");
-    evtSource.onmessage = function (event) {
-        console.log(event);
-    }
 
     function login(user, password, id) {
         var url = "http://localhost/login";
@@ -28,13 +24,21 @@
 
         var xhr = new XMLHttpRequest();
         xhr.open("POST", url, true);
-        xhr.setRequestHeader('Content-type', 'application/json; charset=utf-8');
+        xhr.withCredentials = true;
+        xhr.setRequestHeader('Content-type', 'application/json');
         xhr.onload = function () {
             var token = JSON.parse(xhr.responseText);
             console.log(token);
-        }
+        };
         xhr.send(json);
+        xhr.addEventListener("loadend", function (event) {        
+            const evtSource = new EventSource("http://localhost/events?type=sse");
+            evtSource.onmessage = function (event) {
+                console.log(event);
+            };
+        }, false);
     }
+
 </script>
 
 </html>
