@@ -77,7 +77,7 @@ If Go is already installed in your system, just
 - copy the repo's files to your `$GOPATH/src/sse` 
 - run `go install` and execute compiled bin: `sse`
 
-A small demo of implementation can be reached on `http://localhost` (at the port you specified in `.env`)
+A small demo of implementation can be reached on `http://localhost/example` (at the port you specified in `.env`)
 
 # Consume
 
