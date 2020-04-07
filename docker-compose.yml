@@ -13,7 +13,7 @@ services:
     #   - TRUSTED_PROXIES=${TRUSTED_PROXIES:-?.?.?.?/?}
     # ports:
     #   - "8080:80"
-    working_dir: /go/src/app/src
+    working_dir: /go/src/app
     volumes:
       - .:/go/src/app
     labels:
