@@ -54,8 +54,10 @@ Fill env vars:
 
 ```
 # App's vars
-SSE_USERNAME= # there will be the user allowed to access the server
-SSE_PASSWORD= # there will be the user's password
+SSE_CLIENT_USERNAME= # there will be the user allowed to access the server and fetch events
+SSE_CLIENT_PASSWORD= # there will be the user's password
+SSE_BROADCASTER_USERNAME= # there will be the broadcaster allowed to access the server and broadcast event
+SSE_BROADCASTER_PASSWORD= # there will be the broadcaster's password
 SSE_APP_KEY= # secret key to crypt JWT token
 SSE_PORT=80 # Port where to expose the API
 ALLOWED_ORIGIN= # For CORS. Wildcard won't work (cookie setup)
@@ -63,9 +65,17 @@ ALLOWED_ORIGIN= # For CORS. Wildcard won't work (cookie setup)
 # ...
 ```
 
-Run:
+# Run
+
+## In a container:
 
 `docker-compose up --build`
+
+## Manually
+
+If Go is already installed in your system, just 
+- copy the repo's files to your `$GOPATH/src/sse` 
+- run `go install` and execute compiled bin: `sse`
 
 # Consume
 
@@ -78,15 +88,19 @@ It provides a light and humble way to connect to the server and set a callback f
 <script>
 
     //instantiate
-    var client = new SSEClient("https://sse.serveradress.tld","sse","my_user","my_password", "my_user_id");
+    var client = new SSEClient("https://sse.serveradress.tld","sse");
     
     //set callback method that will handle every received events
     client.setCallback(function(event){
         console.log(event); //example
     })
     
-    //run (will log in and run EventStream)
-    client.run();
+    //with creds: not safe (for tests)
+    client.withCreds("my_user","my_password", "my_user_id")
+    
+    // with token, generated server side, for example:
+    var token = getTokenFromServer(); //custom function making a call to your own backend
+    client.withToken(token, "my_user_id");
 
 </script>
 ```

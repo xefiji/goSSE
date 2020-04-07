@@ -37,8 +37,8 @@ func addCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
 }
 
-//Jwt handler to issue the token
-func TokenHandler(w http.ResponseWriter, r *http.Request) {
+//Jwt handler to issue the token and set cookie, from a couple of username / password
+func CredsHandler(w http.ResponseWriter, r *http.Request) {
 	//handle CORS: add headers and check options (return 204 to let the other request be done)
 	addCors(&w)
 	if r.Method == http.MethodOptions {
@@ -165,7 +165,17 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 //todo make it stronger
 func checkAuth(username string, password string) bool {
-	return username == os.Getenv("SSE_USERNAME") && password == os.Getenv("SSE_PASSWORD")
+	//ensure creds are sets
+	if username == "" || password == "" {
+		return false
+	}
+
+	log.Println(os.Getenv("SSE_BROADCASTER_USERNAME"))
+	log.Println(os.Getenv("SSE_BROADCASTER_PASSWORD"))
+	isClientOk := (username == os.Getenv("SSE_CLIENT_USERNAME") && password == os.Getenv("SSE_CLIENT_PASSWORD"))
+	isBroadcasterOk := (username == os.Getenv("SSE_BROADCASTER_USERNAME") && password == os.Getenv("SSE_BROADCASTER_PASSWORD"))
+
+	return isClientOk || isBroadcasterOk
 }
 
 //expiresAt in one hour ?

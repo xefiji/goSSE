@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SSE!</title>
+</head>
+
+<body>
+    Welcome to SSE
+</body>
+
+<script>
+
+    var testId = "a99d4b4e-e5c4-42b4-888d-651862c599f" + Math.floor(Math.random() * 10);
+    var client = new SSEClient("http://localhost", "sse")
+    client.setCallback(function (event) {
+        console.log(event);
+    });
+
+    // client.withCreds('{{ .user }}', '{{ .password }}', testId); //not safe (for tests)
+    // generate your token server side, for example:
+    var token = getTokenFromServer(); //custom method that should call the client's backend
+    client.withToken(token, testId);
+
+    /**
+     * See https://github.com/xefiji/tinyClientSSE
+     * 
+     * @param url
+     * @param event
+     * @param user
+     * @param password
+     * @param id
+     * @constructor
+     */
+    function SSEClient(url, event) {
+
+        this.url = url;
+        this.event = event;
+
+        // the handler function that will be called  to do something with the event
+        this.setCallback = function (callback) {
+            this.callback = callback;
+        };
+
+        //warning: data passes clearly in the request!
+        this.withCreds = function (user, password, id) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", this.url + "/login", true);
+            xhr.withCredentials = true;
+            xhr.setRequestHeader('Content-type', 'application/json');
+
+            var data = {};
+            data.username = user;
+            data.password = password;
+            data.id = id;
+
+            xhr.send(JSON.stringify(data));
+            var url = this.url;
+            var eventType = this.event;
+            var callback = this.callback;
+
+            var run = this.run;
+            var eventType = this.event;
+            var url = this.url;
+            var callback = this.callback;
+            xhr.addEventListener("loadend", function (event) {
+                run(url, eventType, callback);
+            }, false);
+        };
+
+        //use this if token was generated server side
+        this.withToken = function (token, id) {
+            //encode token
+            var data = {}
+            data.token = token;
+            data.id = id;
+            var encoded = btoa(JSON.stringify(data));
+            //set cookie
+            document.cookie = "sse_token=" + encoded;
+            //callrun
+            this.run(this.url, this.event, this.callback);
+        };
+
+        //after logged in (hence cookie set), instanciate an EventStream object
+        this.run = function (url, eventType, callback) {
+            const evtSource = new EventSource(url + "/events?type=" + eventType, { withCredentials: true });
+            evtSource.onmessage = function (event) {
+                callback(event)
+            };
+        };
+
+    };
+
+    /**
+     * Example function...      
+     */
+     function getTokenFromServer() {
+        return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InNzZV91c2VyIiwiZXhwIjoxNTg2Mjk3NTAwfQ.qtxoJf17pcFvXidTap5AsCcByDXdry6zt3VP0vigT28";
+    }
+
+</script>
+
+</html>
