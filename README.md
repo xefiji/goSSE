@@ -32,7 +32,7 @@ If any of those use cases fits to you, you might be a good candidate for SSEs.
 
 When you need to send updates/notifs to browsers from server, without having to maintain a bidirectional connexion (which you would do with websockets), and with a limited access to server ressources.
 
-## Go furter
+## Go further
 
 Mozilla doc says it all: 
 
@@ -176,5 +176,11 @@ Returns 201, 401, 400
 - Https of course
 - Better user auth handling
 - Keep track of all users notifs in a mongo bdd
-- tests
+- Tests
+- Better deployment stack
 - else ?
+
+# Inspiration
+
+- https://community.hetzner.com/tutorials/real-time-apps-with-go-and-reactjs/server-sent-events
+- https://thoughtbot.com/blog/writing-a-server-sent-events-server-in-go
