@@ -1,3 +1,4 @@
 *.exe
 .env
 *.code-workspace
+launch.json

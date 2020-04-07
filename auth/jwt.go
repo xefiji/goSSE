@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -95,27 +96,43 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		addCors(&w)
-		c, err := r.Cookie("sse_token")
-		if err != nil {
-			if err == http.ErrNoCookie { //no cookie, no token
-				w.WriteHeader(http.StatusUnauthorized)
+		var u User
+
+		if isEventStream(r) { //Cookie part (for EventStream API auth)
+			c, err := r.Cookie("sse_token")
+			if err != nil {
+				if err == http.ErrNoCookie { //no cookie, no token
+					w.WriteHeader(http.StatusUnauthorized)
+					io.WriteString(w, `{"error":"No cookie with token"}`)
+					return
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				io.WriteString(w, `{"error":"Bad request"}`)
 				return
 			}
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 
-		//decode cookie
-		cookieValue, err := base64.StdEncoding.DecodeString(c.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			io.WriteString(w, `{"error":"Cookie decoding failed"}`)
-			return
-		}
+			//decode cookie
+			cookieValue, err := base64.StdEncoding.DecodeString(c.Value)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				io.WriteString(w, `{"error":"Cookie decoding failed"}`)
+				return
+			}
 
-		//hydrate user with cookie datas
-		var u User
-		json.Unmarshal([]byte(cookieValue), &u)
+			//hydrate user with cookie datas
+			json.Unmarshal([]byte(cookieValue), &u)
+
+		} else { //Token is in authorisation header's bearer string
+			token := getTokenFrom(r)
+			if token == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				io.WriteString(w, `{"error":"Token not found"}`)
+				return
+			}
+
+			//hydrate user with token datas
+			u.Token = token
+		}
 
 		//check token's validity
 		claims := &Claims{}
@@ -125,13 +142,16 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		if err != nil {
 			if err == jwt.ErrSignatureInvalid {
 				w.WriteHeader(http.StatusUnauthorized)
+				io.WriteString(w, `{"error":"Invalid token signature"}`)
 				return
 			}
 			w.WriteHeader(http.StatusBadRequest)
+			io.WriteString(w, `{"error":"Bad request or expired token"}`)
 			return
 		}
 		if !token.Valid {
 			w.WriteHeader(http.StatusUnauthorized)
+			io.WriteString(w, `{"error":"Invalid token"}`)
 			return
 		}
 
@@ -148,7 +168,26 @@ func checkAuth(username string, password string) bool {
 	return username == os.Getenv("SSE_USERNAME") && password == os.Getenv("SSE_PASSWORD")
 }
 
-//one second ?
+//expiresAt in one hour ?
 func expiresAt() time.Time {
-	return time.Now().Add(time.Second * time.Duration(1))
+	return time.Now().Add(time.Hour * time.Duration(1))
+}
+
+//isEventStream returns true/false if event stream header was or was not found in request
+func isEventStream(r *http.Request) bool {
+	h := r.Header.Get("Accept")
+	return h != "" && h == "text/event-stream"
+}
+
+//getTokenFrom request, parsing the auhtorization bearer and returning it if found
+func getTokenFrom(r *http.Request) string {
+	h := r.Header.Get("Authorization")
+	if h != "" {
+		var re = regexp.MustCompile(`(?mi)^Bearer\s+(.*)`)
+		matches := re.FindStringSubmatch(h)
+		if len(matches) > 1 {
+			return matches[1]
+		}
+	}
+	return ""
 }

@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"sse/auth"
 	"sse/broker"
-	"text/template"
 
 	"github.com/joho/godotenv"
 )
@@ -19,11 +19,11 @@ var tplpath string        //basepath for template parsing.
 func main() {
 	//routing
 	http.Handle("/login", http.HandlerFunc(auth.TokenHandler))
-	http.Handle("/broadcast", bc.WithBroker(&b))    //wrapper to pass extra args
-	http.Handle("/events", auth.AuthMiddleware(&b)) //will call auth middleware, then ServeHTTP method (default)
-	http.Handle("/", http.HandlerFunc(mainHandler)) //classic handler
+	http.Handle("/broadcast", auth.AuthMiddleware(bc.WithBroker(&b))) //wrapper to pass extra args
+	http.Handle("/events", auth.AuthMiddleware(&b))                   //will call auth middleware, then ServeHTTP method (default)
+	http.Handle("/", http.HandlerFunc(mainHandler))                   //classic handler
 
-	fmt.Println("Running...")
+	log.Println("Running...")
 
 	//serving. todo: port as var
 	portVar := os.Getenv("SSE_PORT")

@@ -27,7 +27,7 @@ func (broadcaster *Broadcaster) broadcast(msg Message, b *Broker) {
 
 // for tests
 func (broadcaster *Broadcaster) broadcastLoop(b *Broker) {
-	fmt.Println("Starting to broadcast in a loop")
+	log.Println("Starting to broadcast in a loop")
 	for i := 0; ; i++ {
 		log.Printf("Sent message %d ", i)
 		m := Message{fmt.Sprintf("%d - time is %v", i, time.Now()), strconv.Itoa(rand.Intn(100)), "sse"}
