@@ -7,20 +7,36 @@ It serves four main objectives:
 - Expose a light server to handle Server sent events in my personal and professional apps
 - Know more about the language: concurrency, networking, routing, middlewares
 - Be a playground for people (friends and co workers) to participate
-- Not getting bored while you're containment at home
+- Not getting bored while you're contained at home
+
+It runs with only 2 dependencies (see go.mod), the rest is all native, which was on purpose, in order to know some of the std lib first.
 
 # SSE
 
-Mozilla doc says it all: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
-
-
-## What are they ?
+## Long story short
 
 Unidirectional messages objects sent from the server to the connected clients, received through the EventSource API.
 
-## When to use them ?
+Suppose: 
 
-When you need to send updates/notifs to browsers from server, without having to maintain a bidirectional connexion (which you would do with websockets).
+- you need to send a notification for a given event in your app (new message has arrived, some entity has been updated, a document has arrived, whatever...) to any connected user (or browser)
+
+- Your app, your stack or your server capabilities are legacy, or you cannot depend on a network upgrade such as websockets for example
+
+- You don't want to use manual long polling such as setTimeout in the browser, fetching an xhr request every n minutes...
+
+
+If any of those use cases fits to you, you might be a good candidate for SSEs.
+
+## So: when to use them ?
+
+When you need to send updates/notifs to browsers from server, without having to maintain a bidirectional connexion (which you would do with websockets), and with a limited access to server ressources.
+
+## Go furter
+
+Mozilla doc says it all: 
+
+https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
 
 # Example
 
@@ -44,11 +60,7 @@ SSE_APP_KEY= # secret key to crypt JWT token
 SSE_PORT=80 # Port where to expose the API
 ALLOWED_ORIGIN= # For CORS. Wildcard won't work (cookie setup)
 
-# Reverse proxy's vars
-COMPOSE_PROJECT_NAME= # well known
-SSE_URL= # well known
-WHITELIST= # well known
-TRUSTED_PROXIES= # well known
+# ...
 ```
 
 Run:
@@ -57,10 +69,14 @@ Run:
 
 # Consume
 
-Use https://github.com/xefiji/tinyClientSSE if needed. Provides a light and humble way to connect to the server and set a callback for each event.
+From the front end, feel free to use https://github.com/xefiji/tinyClientSSE if needed. 
+
+It provides a light and humble way to connect to the server and set a callback for each event.
 
 
 ```js
+<script>
+
     //instantiate
     var client = new SSEClient("https://sse.serveradress.tld","sse","my_user","my_password", "my_user_id");
     
@@ -71,6 +87,8 @@ Use https://github.com/xefiji/tinyClientSSE if needed. Provides a light and humb
     
     //run (will log in and run EventStream)
     client.run();
+
+</script>
 ```
 
 # Send
@@ -92,6 +110,8 @@ Content-Type: application/json
 Php implementation:
 
 ```php
+<?php
+
 $curl = curl_init();
 
 curl_setopt_array($curl, array(
@@ -105,7 +125,7 @@ curl_setopt_array($curl, array(
 
 $response = curl_exec($curl);
 curl_close($curl);
-echo $response;//token is here
+echo $response; //token is here. Lasts for 1 hour
 ```
 
 ## Now that you have the token
@@ -156,4 +176,5 @@ Returns 201, 401, 400
 - Https of course
 - Better user auth handling
 - Keep track of all users notifs in a mongo bdd
+- tests
 - else ?
