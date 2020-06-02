@@ -97,30 +97,40 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		addCors(&w)
 		var u User
+		var raw string
 
-		if isEventStream(r) { //Cookie part (for EventStream API auth)
-			c, err := r.Cookie("sse_token")
-			if err != nil {
-				if err == http.ErrNoCookie { //no cookie, no token
-					w.WriteHeader(http.StatusUnauthorized)
-					io.WriteString(w, `{"error":"No cookie with token"}`)
+		if isEventStream(r) { //Cookie or url part (for EventStream API auth)
+
+			//check if token is passed as query param
+			urlToken := r.URL.Query().Get("token")
+
+			if urlToken == "" { //token is in cookie
+				c, err := r.Cookie("sse_token")
+				if err != nil {
+					if err == http.ErrNoCookie { //no cookie, no token
+						w.WriteHeader(http.StatusUnauthorized)
+						io.WriteString(w, `{"error":"No cookie with token"}`)
+						return
+					}
+					w.WriteHeader(http.StatusBadRequest)
+					io.WriteString(w, `{"error":"Bad request"}`)
 					return
 				}
-				w.WriteHeader(http.StatusBadRequest)
-				io.WriteString(w, `{"error":"Bad request"}`)
-				return
+				raw = c.Value
+			} else {
+				raw = urlToken //token is in url
 			}
 
-			//decode cookie
-			cookieValue, err := base64.StdEncoding.DecodeString(c.Value)
+			//decode token
+			tokenValue, err := base64.StdEncoding.DecodeString(raw)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
-				io.WriteString(w, `{"error":"Cookie decoding failed"}`)
+				io.WriteString(w, `{"error":"Token decoding failed"}`)
 				return
 			}
 
-			//hydrate user with cookie datas
-			json.Unmarshal([]byte(cookieValue), &u)
+			//hydrate user with token datas
+			json.Unmarshal([]byte(tokenValue), &u)
 
 		} else { //Token is in authorisation header's bearer string
 			token := getTokenFrom(r)
