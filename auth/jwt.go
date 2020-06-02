@@ -180,8 +180,6 @@ func checkAuth(username string, password string) bool {
 		return false
 	}
 
-	log.Println(os.Getenv("SSE_BROADCASTER_USERNAME"))
-	log.Println(os.Getenv("SSE_BROADCASTER_PASSWORD"))
 	isClientOk := (username == os.Getenv("SSE_CLIENT_USERNAME") && password == os.Getenv("SSE_CLIENT_PASSWORD"))
 	isBroadcasterOk := (username == os.Getenv("SSE_BROADCASTER_USERNAME") && password == os.Getenv("SSE_BROADCASTER_PASSWORD"))
 
