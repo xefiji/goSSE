@@ -16,6 +16,7 @@ import (
 )
 
 var jwtKey = []byte(os.Getenv("SSE_APP_KEY"))
+var Quit = make(chan os.Signal)
 
 type Claims struct {
 	Username string `json:"username"`
@@ -165,6 +166,17 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		//check if allowed for specific routes
+		switch r.URL.String() {
+		//gracefully stop server via API
+		case "/admin/stop":
+			if claims.Username != os.Getenv("SSE_ADMIN_USERNAME") {
+				w.WriteHeader(http.StatusUnauthorized)
+				io.WriteString(w, `{"error":"User not allowed"}`)
+				return
+			}
+		}
+
 		//add user to request context
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "user", u)
@@ -182,8 +194,9 @@ func checkAuth(username string, password string) bool {
 
 	isClientOk := (username == os.Getenv("SSE_CLIENT_USERNAME") && password == os.Getenv("SSE_CLIENT_PASSWORD"))
 	isBroadcasterOk := (username == os.Getenv("SSE_BROADCASTER_USERNAME") && password == os.Getenv("SSE_BROADCASTER_PASSWORD"))
+	isAdminOk := (username == os.Getenv("SSE_ADMIN_USERNAME") && password == os.Getenv("SSE_ADMIN_PASSWORD"))
 
-	return isClientOk || isBroadcasterOk
+	return isClientOk || isBroadcasterOk || isAdminOk
 }
 
 //expiresAt in one hour ?

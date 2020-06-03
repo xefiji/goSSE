@@ -16,6 +16,6 @@ func MainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Render template
-	var env_vars = map[string]string{"user": os.Getenv("SSE_CLIENT_USERNAME"), "password": os.Getenv("SSE_CLIENT_PASSWORD")}
+	var env_vars = map[string]string{"port": os.Getenv("SSE_PORT"), "user": os.Getenv("SSE_CLIENT_USERNAME"), "password": os.Getenv("SSE_CLIENT_PASSWORD")}
 	t.Execute(w, env_vars)
 }

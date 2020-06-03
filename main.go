@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sse/auth"
 	"sse/broker"
 	"sse/example"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -20,9 +24,8 @@ func main() {
 	http.Handle("/login", http.HandlerFunc(auth.CredsHandler))        //issue token from username/password
 	http.Handle("/broadcast", auth.AuthMiddleware(bc.WithBroker(&b))) //wrapper to pass extra args
 	http.Handle("/events", auth.AuthMiddleware(&b))                   //will call auth middleware, then ServeHTTP method (default)
-	http.Handle("/example", http.HandlerFunc(example.MainHandler))    //classic handler for example
-
-	log.Println("Running...")
+	http.Handle("/admin/stop", auth.AuthMiddleware(http.HandlerFunc(b.Stop)))
+	http.Handle("/example", http.HandlerFunc(example.MainHandler)) //classic handler for example
 
 	//serving. todo: port as var
 	portVar := os.Getenv("SSE_PORT")
@@ -30,9 +33,32 @@ func main() {
 		portVar = "80"
 	}
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", portVar), nil); err != nil {
-		log.Fatal(err)
+	log.Printf("Running on port %s\n\n", portVar)
+
+	srv := &http.Server{
+		Addr: fmt.Sprintf(":%s", portVar),
 	}
+
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatal("❌ failed to start server with error: ", err.Error())
+		}
+	}()
+
+	signal.Notify(auth.Quit, syscall.SIGINT, syscall.SIGTERM)
+	<-auth.Quit
+
+	log.Println("Shutting down server")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := srv.Shutdown(ctx)
+	if err != nil {
+		log.Fatal("❌ failed to shut down server with error: ", err.Error())
+	}
+
+	log.Println("✅ Server shut down gracefully")
 }
 
 //instantiate a Broker and a Broadcaster

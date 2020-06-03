@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sse/auth"
+	"syscall"
 )
 
 const (
@@ -38,7 +39,7 @@ func init() {
 	headers["Transfer-Encoding"] = "chunked"
 }
 
-//starts a new goroutine that handles new clients, client's dcnx and SSE broadcast
+//Start starts a new goroutine that handles new clients, client's dcnx and SSE broadcast
 func (b *Broker) Start() {
 	go func() {
 		for {
@@ -46,12 +47,12 @@ func (b *Broker) Start() {
 			select {
 			case s := <-b.NewClients: //add new client
 				b.Clients[s.MessageChan] = s
-				log.Println("Client connected")
+				log.Printf("Client connected. Total: %d\n", len(b.Clients))
 
 			case s := <-b.DcnxClients: //remove disconnected client and close its channel
 				delete(b.Clients, s.MessageChan)
 				close(s.MessageChan)
-				log.Println("Client disconnected")
+				log.Printf("Client disconnected. Total: %d\n", len(b.Clients))
 
 			case msg := <-b.Messages: //send new message to each attached client
 				go b.dispatch(msg)
@@ -60,7 +61,13 @@ func (b *Broker) Start() {
 	}()
 }
 
-//sends message to all targeted clients
+//Stop send a sigterm to Quit signal to shutdown server gracefully
+func (b *Broker) Stop(w http.ResponseWriter, r *http.Request) {
+	log.Println("Stopping route called...")
+	auth.Quit <- syscall.SIGTERM
+}
+
+//dispatch sends message to all targeted clients
 func (b *Broker) dispatch(msg Message) {
 	total := 0
 	for _, c := range b.Clients {
@@ -79,7 +86,8 @@ func (b *Broker) dispatch(msg Message) {
 			total++
 		}
 	}
-	log.Printf("Broadcasted to %d clients", total)
+
+	log.Printf("Broadcasted %s message to %d clients\n", msg.Type, total)
 }
 
 //handler
@@ -133,8 +141,8 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break //a closed channel means a disconnected client
 		}
 
-		fmt.Fprintf(w, "data: %s\n\n", msg.Content) //write datas
-		f.Flush()                                   //flush response
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", msg.Type, msg.Content) //write datas
+		f.Flush()                                                        //flush response
 	}
 
 	log.Println("Finished HTTP request serving SSEs at ", r.URL.Path)
