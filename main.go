@@ -59,6 +59,7 @@ func main() {
 	}
 
 	log.Println("✅ Server shut down gracefully")
+	os.Exit(0)
 }
 
 //instantiate a Broker and a Broadcaster
